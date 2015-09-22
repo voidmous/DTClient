@@ -7,7 +7,7 @@ package net.joshuazhang.dtclient;
 public final class MQTTPubCons {
     public static String TCPADDR = "tcp://localhost:1883";
     public static final String CLIENTID = MainActivity.DEVICE_NAME;
-    public static final int SLEEPTIMEOUT = 10000;
+    public static final int SLEEPTIMEOUT = 100;
     //0: The broker/client will deliver the message once, with no confirmation.
     //1: The broker/client will deliver the message at least once, with confirmation required.
     //2: The broker/client will deliver the message exactly once by using a four step handshake.

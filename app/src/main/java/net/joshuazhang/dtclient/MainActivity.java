@@ -18,6 +18,7 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -39,15 +40,15 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements OnClickListener, OnItemSelectedListener {
 
-    protected static final String LOG_TAG = "DTClient";
-    protected static final String DEVICE_NAME = DeviceName.getDeviceName();
-    private static boolean useMQTT = true;
-    private static boolean saveRecordingFile = false;
+    public static final String LOG_TAG = "DTClient";
+    public static final String DEVICE_NAME = DeviceName.getDeviceName();
+    public static boolean useMQTT = true;
+    public static boolean saveRecordingFile = false;
+
+    public static MQTTPubAudio pubThread;
 
     private static int frequency;
     protected static Long totalDataSize = 0L; // 用于记录总的采样点数
-    private Long mRecordStartTimestamp; // 开始录制时的时间戳
-    private Long mRecordStopTimestamp; // 停止录制时的时间戳
 
     private int imageWidth = 512;
 
@@ -58,6 +59,8 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     protected static boolean isRecording = false;
     protected static boolean isPlaying = false;
     private TextView statusString; // 滚动日志信息文本框
+    private EditText mqttAddrEditText;
+    private EditText mqttPortEditText;
 
     private RecordAudio recordTask = null; // 录制音频的实例
     private PlayAudio playTask = null;     // 播放音频的实例
@@ -72,6 +75,9 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     protected static Bitmap bitmapPCM;
     protected static Canvas canvasPCM;
     protected static Paint paintPCM;
+
+    private Long startTimeStamp;
+    private Long stopTimeStamp;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -89,6 +95,9 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
 
         statusString = (TextView) findViewById(R.id.status);
         statusString.setMovementMethod(new ScrollingMovementMethod()); //可滚动更新的文本
+
+        mqttAddrEditText = (EditText) findViewById(R.id.mqtt_addr);
+        mqttPortEditText = (EditText) findViewById(R.id.mqtt_port);
 
         Spinner sp;
         sp = (Spinner) findViewById(R.id.spinnerSampleRate); // 设置Spinner用于选择采样频率
@@ -144,47 +153,52 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     recordButton.setText("Start Recording");
                     recordTask.cancel(true); //手动停止，对应onCancelled方法
                     recordTask = null;
-                    mRecordStopTimestamp = System.currentTimeMillis(); //获取采样停止时刻的时间戳
+                    stopTimeStamp = System.currentTimeMillis(); //获取采样停止时刻的时间戳
                     statusString.append("共采样" + totalDataSize + "点，大约耗时" +
-                            ((mRecordStopTimestamp - mRecordStartTimestamp) / 1000.0) + "秒\n");
-                    statusString.append("数据已存储到" + recordingFile);
+                            ((stopTimeStamp - startTimeStamp) / 1000.0) + "秒\n");
+                    if (saveRecordingFile) {
+                        statusString.append("数据已存储到" + recordingFile);
+                    }
                 } else {
                     // 非录制状态按“Start”按钮开始录制并改按钮文字为“Stop”
                     isRecording = true;
+                    recordButton.setText("Stop Recording");
                     playButton.setEnabled(false); //录制状态下播放按钮不可用
                     totalDataSize = 0L; //计数归零
                     statusString.append("开始录制\n");
-                    recordButton.setText("Stop Recording");
-                    try {
-                        String timeStr = (new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US)).format(new Date());
-                        recordingFile = new File(path, DEVICE_NAME + "_"
-                                + timeStr + ".pcm");
-                        // 文件名示例：LGE-LG-SU640_2015-04-04_22-28-21.pcm
-                        boolean isFileCreated = recordingFile.createNewFile();
-                        if (isFileCreated) {
-                            Log.i(LOG_TAG, "成功创建文件" + recordingFile + "\n");
-                        } else {
-                            Log.i(LOG_TAG, "文件创建失败，请检查原因\n");
+                    if (saveRecordingFile) {
+                        try {
+                            String timeStr = (new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US)).format(new Date());
+                            recordingFile = new File(path, DEVICE_NAME + "_"
+                                    + timeStr + ".pcm");
+                            // 文件名示例：LGE-LG-SU640_2015-04-04_22-28-21.pcm
+                            boolean isFileCreated = recordingFile.createNewFile();
+                            if (isFileCreated) {
+                                Log.i(LOG_TAG, "成功创建文件" + recordingFile + "\n");
+                            } else {
+                                Log.i(LOG_TAG, "文件创建失败，请检查原因\n");
+                            }
+                            DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(recordingFile)));
+                            recordAS.setDos(dos); // 设置录制输出文件流
+                        } catch (IOException ioe) {
+                            throw new RuntimeException("无法在SD卡上创建文件", ioe);
+                        } catch (Throwable t) {
+                            Log.e(LOG_TAG, "创建文件输出流失败");
                         }
-                    } catch (IOException ioe) {
-                        throw new RuntimeException("无法在SD卡上创建文件", ioe);
                     }
-                    try {
-                        DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(recordingFile)));
-                        recordAS.setDos(dos); // 设置录制输出文件流
-                    } catch (Throwable t) {
-                        Log.e(LOG_TAG, "创建文件输出流失败");
-                    }
-                    // Read MQTT Address
-                    // TODO 要不要验证IPv4地址？
-                    String mqttAddr = "tcp://" + findViewById(R.id.mqtt_addr).toString() +
-                            findViewById(R.id.mqtt_port).toString();
-                    // TODO 设置MQTT网络流输出
                     if (useMQTT) {
-                        //dos = new DataOutputStream(new MqttOutputStream())
+                        // Read MQTT Address
+                        // TODO 要不要验证IPv4地址？
+                        MQTTPubCons.TCPADDR = "tcp://" +
+                                mqttAddrEditText.getText().toString() + ":" +
+                                mqttPortEditText.getText().toString();
+                        Log.i(LOG_TAG, "MQTT broker 设置为：" + MQTTPubCons.TCPADDR);
+                        // TODO 设置MQTT网络流输出
+                        pubThread = new MQTTPubAudio();
+                        pubThread.start();
                     }
                     recordTask = new RecordAudio(recordAS); // 传入录制参数并创建录制子线程
-                    mRecordStartTimestamp = System.currentTimeMillis(); // 获取采样开始时刻的时间戳
+                    startTimeStamp = System.currentTimeMillis(); // 获取采样开始时刻的时间戳
                     recordTask.execute(); // 开始调用后台进程
                 }
                 break;

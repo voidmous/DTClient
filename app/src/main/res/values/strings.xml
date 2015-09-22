@@ -9,4 +9,5 @@
     <string name="mqtt_broker">地址</string>
     <string name="mqtt_port">端口</string>
     <string name="mqtt_port_default">1883</string>
+    <string name="mqtt_broker_default">10.14.114.125</string>
 </resources>
