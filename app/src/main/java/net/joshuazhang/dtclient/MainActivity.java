@@ -67,10 +67,6 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     private File path;
     protected static File recordingFile;     // 保存音频文件，路径为/storage/sdcard/DTClient/
 
-    // TODO set MQTT server and port
-    private String mqttServer = null;
-    private String mqttPort = "1883";
-
     protected static ImageView imageViewPCM;
     protected static Bitmap bitmapPCM;
     protected static Canvas canvasPCM;
@@ -187,13 +183,12 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                         }
                     }
                     if (useMQTT) {
-                        // Read MQTT Address
-                        // TODO 要不要验证IPv4地址？
+                        // Read MQTT Address，为简单起见，不验证IPv4地址或者域名
                         MQTTPubCons.TCPADDR = "tcp://" +
                                 mqttAddrEditText.getText().toString() + ":" +
                                 mqttPortEditText.getText().toString();
                         Log.i(LOG_TAG, "MQTT broker 设置为：" + MQTTPubCons.TCPADDR);
-                        // TODO 设置MQTT网络流输出
+                        // 启动数据发布子线程
                         pubThread = new MQTTPubAudio();
                         pubThread.start();
                     }

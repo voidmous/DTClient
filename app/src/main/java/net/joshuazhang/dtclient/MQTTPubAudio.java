@@ -41,7 +41,7 @@ public class MQTTPubAudio extends Thread {
             Log.i(LOG_TAG, "音频采集发布线程开始运行——发布数据");
             while (MainActivity.isRecording) {
                 if (oldMsgUpdateCNT != msgUpdateCNT) { // 来了新数据则重新发布
-                    pubMsg.setQos(MQTTPubCons.QOS0);
+                    pubMsg.setQos(MQTTPubCons.QoS0);
                     pubToken = pubTopic.publish(pubMsg);
                     Log.i(LOG_TAG, "发布数据");
                     pubToken.waitForCompletion(MQTTPubCons.SLEEPTIMEOUT);

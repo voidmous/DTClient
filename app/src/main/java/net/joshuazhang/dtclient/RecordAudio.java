@@ -12,6 +12,7 @@ import java.io.DataOutputStream;
 
 /**
  * 录制音频的子线程AsyncTask类
+ * TODO 把此类改写为服务
  *
  */
 public class RecordAudio extends AsyncTask<Void, short[], Void> {
