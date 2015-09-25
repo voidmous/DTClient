@@ -8,6 +8,8 @@
     <string name="mqtt_setting">MQTT服务器设置</string>
     <string name="mqtt_broker">地址</string>
     <string name="mqtt_broker_default">10.14.114.125</string>
+    <string name="mqtt_broker_hint">MQTT broker 地址</string>
     <string name="mqtt_port">端口</string>
     <string name="mqtt_port_default">1883</string>
+    <string name="mqtt_port_hint">MQTT broker 端口</string>
 </resources>
