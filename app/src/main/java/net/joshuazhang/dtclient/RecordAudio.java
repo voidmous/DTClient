@@ -9,6 +9,7 @@ import android.util.Log;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 
 import java.io.DataOutputStream;
+import java.io.IOException;
 
 /**
  * 录制音频的子线程AsyncTask类
@@ -22,6 +23,8 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
 
     private static final String LOG_TAG = MainActivity.LOG_TAG;
     private AudioSetting mRecordAS;
+    private DataOutputStream dos;
+    private AudioRecord audioRecord;
 
     // 使用构造器传递录制参数
     public RecordAudio(AudioSetting as) {
@@ -29,14 +32,16 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
     }
 
     @Override
-    protected Void doInBackground(Void... params) {
+    protected Void doInBackground (Void... params) {
         try {
             // 创建临时文件以保存音频数据
-            DataOutputStream dos = mRecordAS.getDos();
+            if (MainActivity.saveRecordingFile) {
+                this.dos = mRecordAS.getDos();
+            }
             int bufferSize = AudioRecord.getMinBufferSize(mRecordAS.frequency,
                     mRecordAS.channelConfiguration, mRecordAS.audioEncoding); // 最小缓冲区大小
 
-            AudioRecord audioRecord = new AudioRecord(
+            audioRecord = new AudioRecord(
                     MediaRecorder.AudioSource.MIC, mRecordAS.frequency,
                     mRecordAS.channelConfiguration, mRecordAS.audioEncoding, bufferSize);//创建AudioRecord实例
             Log.i(LOG_TAG, "音源为：" + audioRecord.getAudioSource());
@@ -69,18 +74,22 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
                 }
                 publishProgress(buffer); // 发布采集数据到主界面线程
             }
-            audioRecord.stop(); // isRecording为false后停止录制
-            Log.i(LOG_TAG, "AudioRecord实例已停止");
             if (MainActivity.saveRecordingFile) {
                 dos.close();
+                Log.i(LOG_TAG, "关闭录制流");
             }
-            Log.i(LOG_TAG, "关闭录制流");
-            audioRecord.release(); // 释放对象
-            audioRecord = null; // 对象释放后必须设置引用为null
-            Log.i(LOG_TAG, "AudioRecord实例已释放资源");
-
-        } catch (Throwable t) {
+        } catch (IOException ioe) {
+            Log.e(LOG_TAG, "IO异常，请检查");
+        } catch (Exception e) {
             Log.e(LOG_TAG, "录制失败");
+        } finally {
+            audioRecord.stop(); // isRecording为false后停止录制
+            Log.i(LOG_TAG, "AudioRecord实例已停止");
+            audioRecord.release(); // 释放对象
+            if ( audioRecord != null) {
+                audioRecord = null; // 对象释放后必须设置引用为null
+            }
+            Log.i(LOG_TAG, "AudioRecord实例已释放资源");
         }
         return null;
     }

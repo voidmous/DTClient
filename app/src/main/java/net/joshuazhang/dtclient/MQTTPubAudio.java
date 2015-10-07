@@ -25,8 +25,9 @@ public class MQTTPubAudio extends Thread {
             Log.i(LOG_TAG, "ClientID为：" + MQTTPubCons.CLIENTID);
             pubClient = new MqttClient(MQTTPubCons.TCPADDR, MQTTPubCons.CLIENTID, new MemoryPersistence());
             // TODO 为什么这里不加 new MemoryPersistence() 会出错？
+            // TODO 显示连接过程，并提示是否正常连接
             pubClient.connect();
-            Log.i(LOG_TAG, "连接到MQTT broker" + MQTTPubCons.TCPADDR);
+            Log.i(LOG_TAG, "连接到MQTT broker " + MQTTPubCons.TCPADDR);
             pubTopic = pubClient.getTopic(MQTTPubCons.TOPIC_AUDIO_PUB);
             Log.i(LOG_TAG, "发布主题" + MQTTPubCons.TOPIC_AUDIO_PUB);
             Log.i(LOG_TAG, "音频采集发布线程成功创建");

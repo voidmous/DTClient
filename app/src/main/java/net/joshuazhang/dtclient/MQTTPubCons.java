@@ -18,5 +18,4 @@ public final class MQTTPubCons {
     public static final String TOPIC_AUDIO_PUB = "audio/record/"+CLIENTID; // 录制音频流发布主题
     public static final String TOPIC_LOCATION_PUB = "audio/location/"+CLIENTID; // 位置坐标发布主题
     public static final String TOPIC_CONTROL_SUB = "audio/control"; // 录制状态控制订阅主题
-
 }

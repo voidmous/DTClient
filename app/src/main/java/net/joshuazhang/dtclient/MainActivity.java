@@ -50,8 +50,6 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     private static int frequency;
     protected static Long totalDataSize = 0L; // 用于记录总的采样点数
 
-    private int imageWidth = 512;
-
     private AudioSetting recordAS = null;
     private AudioSetting playAS = null;
     private Button recordButton; // 开始、停止录制按钮
@@ -72,8 +70,8 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     protected static Canvas canvasPCM;
     protected static Paint paintPCM;
 
-    private Long startTimeStamp;
-    private Long stopTimeStamp;
+    private Long startTimeStamp=null;
+    private Long stopTimeStamp=null;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -109,6 +107,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         frequency = (int) sp.getSelectedItem();
 
         //初始化PCM图形
+        int imageWidth = 512;
         imageViewPCM = (ImageView) findViewById(R.id.ImageViewPCM);
         bitmapPCM = Bitmap.createBitmap(imageWidth, 200, Bitmap.Config.ARGB_8888);
         canvasPCM = new Canvas(bitmapPCM);
@@ -137,8 +136,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
          * OnClickListener接口必须实现onClick()方法
          */
         switch (v.getId()) {
-            case R.id.record_button:
-                // 录制按钮
+            case R.id.record_button: // 录制按钮
                 if (isRecording) {
                     // 录制状态下按“Stop”按钮则停止录制并改按钮文字为“Start Recording”
                     isRecording = false; // 通过更改isRecording状态结束录制
@@ -146,7 +144,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                         playButton.setEnabled(true); // 播放录音按钮激活
                     }
                     statusString.append("停止录制\n");
-                    recordButton.setText("Start Recording");
+                    recordButton.setText(R.string.start_recording);
                     recordTask.cancel(true); //手动停止，对应onCancelled方法
                     recordTask = null;
                     stopTimeStamp = System.currentTimeMillis(); //获取采样停止时刻的时间戳
@@ -158,7 +156,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                 } else {
                     // 非录制状态按“Start”按钮开始录制并改按钮文字为“Stop”
                     isRecording = true;
-                    recordButton.setText("Stop Recording");
+                    recordButton.setText(R.string.stop_recording);
                     playButton.setEnabled(false); //录制状态下播放按钮不可用
                     totalDataSize = 0L; //计数归零
                     statusString.append("开始录制\n");
@@ -197,14 +195,13 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     recordTask.execute(); // 开始调用后台进程
                 }
                 break;
-            case R.id.play_button:
-                // 播放按钮
+            case R.id.play_button: // 播放按钮
                 if(isPlaying) {
                     // 播放状态下按“Stop Playing”按钮则停止播放并改按钮文字为"Start Playing"
                     isPlaying = false;
                     recordButton.setEnabled(true);
                     statusString.append("停止播放\n");
-                    playButton.setText("Start Playing");
+                    playButton.setText(R.string.start_playing);
                     playTask.cancel(true);
                     playTask=null;
 
@@ -212,7 +209,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     // 非播放状态下按"Start Playing"按钮则开始播放并改按钮文字为"Stop Playing"
                     recordButton.setEnabled(false); // 播放状态下录制按钮不可用
                     statusString.append("开始播放文件" + recordingFile + "\n");
-                    playButton.setText("Stop Playing");
+                    playButton.setText(R.string.stop_playing);
                     try {
                         DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(recordingFile)));
                         playAS.setDis(dis); // 设置播放输入文件流
