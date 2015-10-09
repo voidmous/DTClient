@@ -13,6 +13,13 @@ public class AudioSetting {
     public DataOutputStream dos = null;
     public DataInputStream dis = null;
 
+    /**
+     * 构造参数设置对象
+     * @param frequency 采样/播放频率，
+     * @param channelConfiguration 单/双声道，采样要使用AudioFormat.CHANNEL_IN_MONO，
+     *                             播放要使用AudioFormat.CHANNEL_OUT_MONO
+     * @param audioEncoding 8/16位PCM
+     */
     public AudioSetting(int frequency, int channelConfiguration, int audioEncoding) {
         this.frequency = frequency;
         this.channelConfiguration = channelConfiguration;

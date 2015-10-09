@@ -5,6 +5,7 @@ import android.widget.TextView;
 
 /**
  * 应用内日志，除了写入系统日志外，还会在应用内打印日志方便脱机调试
+ * TODO 有待重新规划实现
  */
 public class MyLog {
     private static final String LOG_TAG = "DTClient";

@@ -182,10 +182,10 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     }
                     if (useMQTT) {
                         // Read MQTT Address，为简单起见，不验证IPv4地址或者域名
-                        MQTTPubCons.TCPADDR = "tcp://" +
+                        MQTTCons.TCPADDR = "tcp://" +
                                 mqttAddrEditText.getText().toString() + ":" +
                                 mqttPortEditText.getText().toString();
-                        Log.i(LOG_TAG, "MQTT broker 设置为：" + MQTTPubCons.TCPADDR);
+                        Log.i(LOG_TAG, "MQTT broker 设置为：" + MQTTCons.TCPADDR);
                         // 启动数据发布子线程
                         pubThread = new MQTTPubAudio();
                         pubThread.start();
