@@ -97,6 +97,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         sp = (Spinner) findViewById(R.id.spinnerSampleRate); // 设置Spinner用于选择采样频率
         sp.setOnItemSelectedListener(this);
         List<Integer> spinnerList = new ArrayList<>();
+        spinnerList.add(16000);
         spinnerList.add(8000);
         spinnerList.add(11250);
         spinnerList.add(22050);

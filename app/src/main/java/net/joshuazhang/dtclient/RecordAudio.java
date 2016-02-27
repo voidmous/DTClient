@@ -66,7 +66,7 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
 
             // buffer数据用作存储或传输
             int blockSize=512;
-            short[] buffer = new short[blockSize]; //16位short数组，取值范围-32768~+32767
+            short[] buffer = new short[blockSize]; //16位short signed int，取值范围-32768~+32767
 
             // 开始录制音频
             audioRecord.startRecording();
@@ -133,7 +133,7 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
         // audioData是归一化的buffer数据，取值范围为[-1.0, 1.0)，用于绘图
         double[] audioData=new double[progress[0].length];
 
-        // 保存转换后的byte[]，用于 MQTT 发送
+        // data保存转换后的byte[]，用于 MQTT 发送
         byte[] data = new byte[progress[0].length * 2];
 
         //绘制PCM波形和分贝图形
