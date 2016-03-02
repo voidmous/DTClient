@@ -42,28 +42,29 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
 
     public static final String LOG_TAG = "DTClient";
     public static final String DEVICE_NAME = DeviceName.getDeviceName();
-    public static boolean useMQTT = true;
-    public static boolean saveRecordingFile = true;
+    // TODO 为useMQTT和saveRecordingFile提供按钮开关
+    public static boolean sendDataWithMQTT = true; //是否发送MQTT数据
+    public static boolean saveDataToFile = true;  //是否保存数据到本地
 
-    public static MQTTPubAudio pubThread;
+    public static MQTTPubAudio pubThread; //MQTT数据发送线程
 
     private static int frequency;
     protected static Long totalDataSize = 0L; // 用于记录总的采样点数
 
-    private AudioSetting recordAS = null;
-    private AudioSetting playAS = null;
-    private Button recordButton; // 开始、停止录制按钮
-    private Button playButton; // 开始、停止播放按钮
+    private AudioSetting recordAS = null; //录音设置实例
+    private AudioSetting playAS = null;   //播放设置实例
+    private Button recordButton;          // 开始、停止录制按钮
+    private Button playButton;            // 开始、停止播放按钮
     protected static boolean isRecording = false;
     protected static boolean isPlaying = false;
-    private TextView statusString; // 滚动日志信息文本框
-    private EditText mqttAddrEditText;
-    private EditText mqttPortEditText;
+    private TextView statusString;        // 滚动日志信息文本框
+    private EditText mqttAddrEditText;    // MQTT地址文本
+    private EditText mqttPortEditText;    // MQTT端口文本
 
     private RecordAudio recordTask = null; // 录制音频的实例
     private PlayAudio playTask = null;     // 播放音频的实例
     private File path;
-    protected static File recordingFile;     // 保存音频文件，路径为/storage/sdcard/DTClient/
+    protected static File recordingFile;   // 保存音频文件，路径为/storage/sdcard/DTClient/
 
     protected static ImageView imageViewPCM;
     protected static Bitmap bitmapPCM;
@@ -126,6 +127,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
             Log.i(LOG_TAG, "创建DTClient文件夹失败");
         }
 
+        // 注意CHANNEL_IN_MONO和CHANNEL_OUT_MONO有区别，只能分开设置
         recordAS = new AudioSetting(frequency, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
         playAS = new AudioSetting(frequency, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
 
@@ -141,7 +143,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                 if (isRecording) {
                     // 录制状态下按“Stop”按钮则停止录制并改按钮文字为“Start Recording”
                     isRecording = false; // 通过更改isRecording状态结束录制
-                    if (saveRecordingFile) {
+                    if (saveDataToFile) {
                         playButton.setEnabled(true); // 播放录音按钮激活
                     }
                     statusString.append("停止录制\n");
@@ -151,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     stopTimeStamp = System.currentTimeMillis(); //获取采样停止时刻的时间戳
                     statusString.append("共采样" + totalDataSize + "点，大约耗时" +
                             ((stopTimeStamp - startTimeStamp) / 1000.0) + "秒\n");
-                    if (saveRecordingFile) {
+                    if (saveDataToFile) {
                         statusString.append("数据已存储到" + recordingFile);
                     }
                 } else {
@@ -161,7 +163,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     playButton.setEnabled(false); //录制状态下播放按钮不可用
                     totalDataSize = 0L; //计数归零
                     statusString.append("开始录制\n");
-                    if (saveRecordingFile) {
+                    if (saveDataToFile) {
                         try {
                             String timeStr = (new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US)).format(new Date());
                             recordingFile = new File(path, DEVICE_NAME + "_"
@@ -181,7 +183,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                             Log.e(LOG_TAG, "创建文件输出流失败");
                         }
                     }
-                    if (useMQTT) {
+                    if (sendDataWithMQTT) {
                         // Read MQTT Address，为简单起见，不验证IPv4地址或者域名
                         MQTTCons.TCPADDR = "tcp://" +
                                 mqttAddrEditText.getText().toString() + ":" +

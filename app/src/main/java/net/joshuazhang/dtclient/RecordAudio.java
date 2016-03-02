@@ -30,7 +30,7 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
     public RecordAudio(AudioSetting as) {
         mRecordAS = as;
         // 创建文件以保存音频数据
-        if (MainActivity.saveRecordingFile) {
+        if (MainActivity.saveDataToFile) {
             this.dos = mRecordAS.getDos();
         }
     }
@@ -78,7 +78,7 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
                 MainActivity.totalDataSize += bufferReadResultLen; //统计采样点数
                 Log.v(LOG_TAG, "采样了" + bufferReadResultLen + "点数据");
 
-                if (MainActivity.saveRecordingFile) {
+                if (MainActivity.saveDataToFile) {
                     for (int i = 0; i < bufferReadResultLen; i++) {
                         dos.writeShort(buffer[i]); //写入两个字节到文件,big-endian
                     }
@@ -101,7 +101,7 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
                 audioRecord = null; // 对象释放后必须设置引用为null
             }
             Log.i(LOG_TAG, "AudioRecord实例已释放资源");
-            if (MainActivity.saveRecordingFile) {
+            if (MainActivity.saveDataToFile) {
                 if (this.dos != null) {
                     try {
                         this.dos.close();
@@ -148,11 +148,12 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
         }
         MainActivity.imageViewPCM.invalidate(); //更新PCM波形图
 
-        // 发送采集的数据到 MQTT broker
-        MainActivity.pubThread.pubMsg=new MqttMessage(data);
-        MainActivity.pubThread.msgUpdateCNT += 1; // 更新数据更新FLAG
-        Log.v(LOG_TAG, "第" + MainActivity.pubThread.msgUpdateCNT + "段新数据更新完成");
-        //MainActivity.pubThread.start();
-
+        if (MainActivity.sendDataWithMQTT) {
+            // 发送采集的数据到 MQTT broker
+            MainActivity.pubThread.pubMsg=new MqttMessage(data);
+            MainActivity.pubThread.msgUpdateCNT += 1; // 更新数据更新FLAG
+            Log.v(LOG_TAG, "第" + MainActivity.pubThread.msgUpdateCNT + "段新数据更新完成");
+            //MainActivity.pubThread.start();
+        }
     }
 }
