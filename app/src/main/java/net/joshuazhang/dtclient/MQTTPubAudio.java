@@ -3,6 +3,7 @@ package net.joshuazhang.dtclient;
 import android.util.Log;
 
 import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -29,15 +30,22 @@ public class MQTTPubAudio extends Thread {
             Log.i(LOG_TAG, "ClientID为：" + MQTTCons.CLIENTID);
             pubClient = new MqttClient(MQTTCons.TCPADDR, MQTTCons.CLIENTID, new MemoryPersistence());
             // TODO 为什么这里不加 new MemoryPersistence() 会出错？
-            // TODO 显示连接过程，并提示是否正常连接
-            pubClient.connect();
+            MqttConnectOptions connOpts = new MqttConnectOptions();
+            connOpts.setCleanSession(true);
+            pubClient.connect(connOpts);
             Log.i(LOG_TAG, "连接到MQTT broker " + MQTTCons.TCPADDR);
             pubTopic = pubClient.getTopic(MQTTCons.TOPIC_AUDIO_PUB);
             Log.i(LOG_TAG, "发布主题" + MQTTCons.TOPIC_AUDIO_PUB);
             Log.i(LOG_TAG, "音频采集发布线程成功创建");
-        } catch (MqttException mqtte) {
-            mqtte.printStackTrace();
+        } catch (MqttException me) {
             Log.e(LOG_TAG, "创建MQTT连接出错");
+            Log.e(LOG_TAG, "Reason: " + me.getReasonCode());
+            Log.e(LOG_TAG, "Msg: " + me.getMessage());
+            Log.e(LOG_TAG, "Loc: " + me.getLocalizedMessage());
+            Log.e(LOG_TAG, "Cause: " + me.getCause());
+            Log.e(LOG_TAG, "Exception: " + me);
+            me.printStackTrace();
+            MainActivity.forceExitApp(); // 如果创建连接失败，直接退出App，异常退出
         }
     }
 
@@ -49,14 +57,25 @@ public class MQTTPubAudio extends Thread {
             while (MainActivity.isRecording) {
                 if (oldMsgUpdateCNT != msgUpdateCNT) { // 来了新数据则重新发布
                     pubMsg.setQos(MQTTCons.QoS0);
+                    // TODO 选择哪种QoS比较合适？
+                    //QoS0可能导致部分采集数据丢失？
+                    //QoS2可能导致传输中断、网络阻塞？
                     pubToken = pubTopic.publish(pubMsg);
-                    Log.i(LOG_TAG, "发布数据");
+                    //Log.i(LOG_TAG, "发布数据");
+                    // TODO 需要等待数据发送完成吗？
+                    // 好像和数据发送中断无关
                     pubToken.waitForCompletion(MQTTCons.SLEEPTIMEOUT);
+                    Log.v(LOG_TAG, "第" + msgUpdateCNT + "段数据发布完成");
                     oldMsgUpdateCNT = msgUpdateCNT;
                 }
             }
-        } catch (MqttException mqtte) {
-            mqtte.printStackTrace();
+        } catch (MqttException me) {
+            Log.e(LOG_TAG, "Reason: " + me.getReasonCode());
+            Log.e(LOG_TAG, "Msg: " + me.getMessage());
+            Log.e(LOG_TAG, "Loc: " + me.getLocalizedMessage());
+            Log.e(LOG_TAG, "Cause: " + me.getCause());
+            Log.e(LOG_TAG, "Exception: " + me);
+            me.printStackTrace();
             Log.e(LOG_TAG, "MQTT发布数据出错");
         }
 

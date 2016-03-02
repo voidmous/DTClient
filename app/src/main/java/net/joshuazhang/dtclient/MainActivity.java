@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     public static final String LOG_TAG = "DTClient";
     public static final String DEVICE_NAME = DeviceName.getDeviceName();
     public static boolean useMQTT = true;
-    public static boolean saveRecordingFile = false;
+    public static boolean saveRecordingFile = true;
 
     public static MQTTPubAudio pubThread;
 
@@ -248,7 +248,12 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                 // TODO move set freq function into menu
                 break;
             case R.id.help:
-                Toast.makeText(this, "Helf info for DTClient", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Help info for DTClient", Toast.LENGTH_SHORT).show();
+                break;
+            case R.id.exit:
+                Toast.makeText(this, "Exit App Now!", Toast.LENGTH_SHORT).show();
+                // 这样做可以方便调试时重启App而不需要手动杀掉已有的App进程
+                forceExitApp();
                 break;
             default:
         }
@@ -258,6 +263,18 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     @Override
     public void onNothingSelected(AdapterView<?> parent) {
         // Nothing to do here
+    }
+
+    /**
+     * 强制退出App
+     * 使用场景：
+     * 1、MQTT broker连接失败
+     * 2、菜单里，用于调试退出
+     */
+    public static void forceExitApp() {
+        android.os.Process.killProcess(android.os.Process.myPid());
+        System.exit(1);
+        // 使用System.exit()退出App是由争议的，这里不理会
     }
 
 }
