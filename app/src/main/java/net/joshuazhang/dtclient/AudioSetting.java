@@ -5,6 +5,8 @@ import java.io.DataOutputStream;
 
 /**
  * 音频录制及播放参数设置类
+ *
+ * 用于创建RecordAudio和PlayAudio实例
  */
 public class AudioSetting {
     public int frequency;

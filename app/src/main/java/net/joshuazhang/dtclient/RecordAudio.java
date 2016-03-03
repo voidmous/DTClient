@@ -57,16 +57,22 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
                     mRecordAS.channelConfiguration,
                     mRecordAS.audioEncoding,
                     bufferSize);
+            Log.i(LOG_TAG, "========采样设置参数========");
             Log.i(LOG_TAG, "音源为：" + audioRecord.getAudioSource());
             Log.i(LOG_TAG, "采样频率为：" + audioRecord.getSampleRate()+"Hz");
-            Log.i(LOG_TAG, "声道设置为：" + audioRecord.getChannelCount());
-            Log.i(LOG_TAG, "音频编码格式为：" + audioRecord.getAudioFormat());
+            Log.i(LOG_TAG, "声道设置为：" + audioRecord.getChannelCount() + "个声道");
+            Log.i(LOG_TAG, "音频编码格式为：" + audioRecord.getAudioFormat() + "个字节");
             Log.i(LOG_TAG, "缓冲区大小为："+ bufferSize + "个字节");
-            Log.i(LOG_TAG, "AudioRecord实例状态为：" + audioRecord.getState());
+            Log.i(LOG_TAG, "AudioRecord实例状态为：" + audioRecord.getState() + "，1为正常");
+            Log.i(LOG_TAG, "========采样设置参数========");
 
+            // TODO buffersize 和 blockSize需要满足什么大小关系吗？
             // buffer数据用作存储或传输
-            int blockSize=512;
+            //int blockSize=512;
+            int blockSize = bufferSize;
             short[] buffer = new short[blockSize]; //16位short signed int，取值范围-32768~+32767
+            Log.i(LOG_TAG, "数据读取缓冲short数组大小为：" + blockSize);
+
 
             // 开始录制音频
             audioRecord.startRecording();

@@ -29,7 +29,7 @@ public class MQTTPubAudio extends Thread {
             Log.i(LOG_TAG, "Broker地址为：" + MQTTCons.TCPADDR);
             Log.i(LOG_TAG, "ClientID为：" + MQTTCons.CLIENTID);
             pubClient = new MqttClient(MQTTCons.TCPADDR, MQTTCons.CLIENTID, new MemoryPersistence());
-            // TODO 为什么这里不加 new MemoryPersistence() 会出错？
+            // 这里不加 new MemoryPersistence() 会出错
             MqttConnectOptions connOpts = new MqttConnectOptions();
             connOpts.setCleanSession(true);
             pubClient.connect(connOpts);
@@ -77,6 +77,7 @@ public class MQTTPubAudio extends Thread {
             Log.e(LOG_TAG, "Exception: " + me);
             me.printStackTrace();
             Log.e(LOG_TAG, "MQTT发布数据出错");
+            // 这里不需要强制退出App，仅仅是个别数据发送错误
         }
 
     }

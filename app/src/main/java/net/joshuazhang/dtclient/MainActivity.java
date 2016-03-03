@@ -18,6 +18,7 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemSelectedListener;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Spinner;
@@ -42,13 +43,14 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
 
     public static final String LOG_TAG = "DTClient";
     public static final String DEVICE_NAME = DeviceName.getDeviceName();
-    // TODO 为useMQTT和saveRecordingFile提供按钮开关
-    public static boolean sendDataWithMQTT = true; //是否发送MQTT数据
-    public static boolean saveDataToFile = true;  //是否保存数据到本地
+    public static boolean sendDataWithMQTT = true;  //是否发送MQTT数据
+    public static boolean saveDataToFile = true;    //是否保存数据到本地
 
     public static MQTTPubAudio pubThread; //MQTT数据发送线程
 
     private static int frequency;
+    private static int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+    // TODO 8bit会显著地提高性能吗？如果不能，不用改
     protected static Long totalDataSize = 0L; // 用于记录总的采样点数
 
     private AudioSetting recordAS = null; //录音设置实例
@@ -98,9 +100,11 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         sp = (Spinner) findViewById(R.id.spinnerSampleRate); // 设置Spinner用于选择采样频率
         sp.setOnItemSelectedListener(this);
         List<Integer> spinnerList = new ArrayList<>();
-        spinnerList.add(16000);
-        spinnerList.add(8000);
+        // 44100Hz is currently the only rate that is guaranteed to work on all devices, but other
+        // rates such as 22050, 16000, and 11025 may work on some devices.
+        spinnerList.add(8000);  // 默认采样率
         spinnerList.add(11250);
+        spinnerList.add(16000);
         spinnerList.add(22050);
         spinnerList.add(44100);
         ArrayAdapter<Integer> dataAdapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,spinnerList);
@@ -122,14 +126,14 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         if (isDirCreated) {
             Log.i(LOG_TAG, "成功创建DTClient文件夹" + path);
         } else if (path.isDirectory()){
-            Log.i(LOG_TAG, path + "DTClient文件夹已存在");
+            Log.i(LOG_TAG, path + "文件夹已存在");
         } else {
             Log.i(LOG_TAG, "创建DTClient文件夹失败");
         }
 
         // 注意CHANNEL_IN_MONO和CHANNEL_OUT_MONO有区别，只能分开设置
-        recordAS = new AudioSetting(frequency, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT);
-        playAS = new AudioSetting(frequency, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
+        recordAS = new AudioSetting(frequency, AudioFormat.CHANNEL_IN_MONO, audioEncoding);
+        playAS = new AudioSetting(frequency, AudioFormat.CHANNEL_OUT_MONO, audioEncoding);
 
     }
 
@@ -141,23 +145,24 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         switch (v.getId()) {
             case R.id.record_button: // 录制按钮
                 if (isRecording) {
-                    // 录制状态下按“Stop”按钮则停止录制并改按钮文字为“Start Recording”
+                    // 录制状态下按“Stop”按钮则停止录制并改recordButton按钮文字为“Start Recording”
                     isRecording = false; // 通过更改isRecording状态结束录制
                     if (saveDataToFile) {
-                        playButton.setEnabled(true); // 播放录音按钮激活
+                        playButton.setEnabled(true); // 如果保存了文件则播放录音按钮激活
                     }
                     statusString.append("停止录制\n");
                     recordButton.setText(R.string.start_recording);
                     recordTask.cancel(true); //手动停止，对应onCancelled方法
                     recordTask = null;
                     stopTimeStamp = System.currentTimeMillis(); //获取采样停止时刻的时间戳
+                    double timeElapsed = (stopTimeStamp - startTimeStamp) / 1000.0;
                     statusString.append("共采样" + totalDataSize + "点，大约耗时" +
-                            ((stopTimeStamp - startTimeStamp) / 1000.0) + "秒\n");
+                            timeElapsed + "秒，平均采样率为" + ( totalDataSize/timeElapsed) + "Hz\n");
                     if (saveDataToFile) {
                         statusString.append("数据已存储到" + recordingFile);
                     }
                 } else {
-                    // 非录制状态按“Start”按钮开始录制并改按钮文字为“Stop”
+                    // 非录制状态按“Start”按钮开始录制并改recordButton按钮文字为“Stop Recording”
                     isRecording = true;
                     recordButton.setText(R.string.stop_recording);
                     playButton.setEnabled(false); //录制状态下播放按钮不可用
@@ -229,12 +234,44 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         }
     }
 
+    public void onCheckboxClicked(View view) {
+        boolean checked = ((CheckBox) view).isChecked();
+
+        switch (view.getId()) {
+            case R.id.checkbox_savefile:
+                if (checked) {
+                    MainActivity.saveDataToFile = true;
+                    Toast.makeText(this, "保存音频到文件", Toast.LENGTH_SHORT).show();
+                    Log.i(LOG_TAG, "保存音频到文件");
+                } else {
+                    MainActivity.saveDataToFile = false;
+                    Toast.makeText(this, "不保存音频到文件", Toast.LENGTH_SHORT).show();
+                    Log.i(LOG_TAG, "不保存音频到文件");
+                }
+                break;
+            case R.id.checkbox_sendmqtt:
+                if (checked) {
+                    MainActivity.sendDataWithMQTT = true;
+                    Toast.makeText(this, "通过MQTT发送数据", Toast.LENGTH_SHORT).show();
+                    Log.i(LOG_TAG, "通过MQTT发送数据");
+                } else {
+                    MainActivity.sendDataWithMQTT = false;
+                    Toast.makeText(this, "不通过MQTT发送数据", Toast.LENGTH_SHORT).show();
+                    Log.i(LOG_TAG, "不通过MQTT发送数据");
+                }
+                break;
+            default:
+                break;
+        }
+
+    }
+
     @Override
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
         frequency = (int) parent.getSelectedItem();
         recordAS.setFrequency(frequency); // 修改录制与播放线程参数设置
         playAS.setFrequency(frequency);
-        Log.i(LOG_TAG, "采样频率修改为：" + MainActivity.frequency);
+        Log.i(LOG_TAG, "采样频率修改为：" + MainActivity.frequency + "Hz");
     }
 
     @Override

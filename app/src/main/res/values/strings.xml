@@ -7,6 +7,8 @@
     <string name="start_playing">Start Playing</string>
     <string name="stop_playing">Stop Playing</string>
     <string name="pcm_image_description">PCM波形图</string>
+    <string name="cb_savefile">保存文件</string>
+    <string name="cb_sendmqtt">MQTT发送</string>
     <string name="mqtt_setting">MQTT服务器设置</string>
     <string name="mqtt_broker">地址</string>
     <string name="mqtt_broker_default">192.168.1.100</string>
