@@ -4,15 +4,16 @@ import android.os.Build;
 
 /**
  * 提取设备Model名称作为设备ID
+ * 比如LGE-LG-SU640
  */
 public class DeviceName {
     public static String getDeviceName() {
         String manufacturer = Build.MANUFACTURER;
         String model = Build.MODEL;
         if (model.startsWith(manufacturer)) {
-            return capitalize(model);
+            return spaceToHyphen(capitalize(model));
         } else {
-            return capitalize(manufacturer) + "-" + model;
+            return spaceToHyphen(capitalize(manufacturer) + "-" + model);
         }
     }
 
@@ -27,5 +28,13 @@ public class DeviceName {
         } else {
             return Character.toUpperCase(first) + s.substring(1);
         }
+    }
+
+    /*
+     *  把空格用连字符代替
+     *  https://stackoverflow.com/questions/5262554/replace-space-to-hyphen
+     */
+    private static String spaceToHyphen(String s) {
+        return s.replace(' ', '-');
     }
 }
