@@ -27,12 +27,14 @@ import android.widget.Toast;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -41,46 +43,48 @@ import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity implements OnClickListener, OnItemSelectedListener {
 
+    // 日志标签
     public static final String LOG_TAG = "DTClient";
+    // logcat进程的命令行参数
+    public static final String logcatProc = "logcat -b main -v brief -d " + LOG_TAG + ":D *:S";
+
+    // 自动识别的设备名称，不包含空格，例如：LGE-LG-SU640，HTC-Vision
     public static final String DEVICE_NAME = DeviceName.getDeviceName();
+
     public static boolean sendDataWithMQTT = true;  //是否发送MQTT数据
     public static boolean saveDataToFile = true;    //是否保存数据到本地
 
     public static MQTTPubAudio pubThread; //MQTT数据发送线程
 
-    private static int frequency;
-    private static int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
-    // TODO 8bit会显著地提高性能吗？如果不能，不用改
+    private static int frequency = 8000;
+
     protected static Long totalDataSize = 0L; // 用于记录总的采样点数
 
-    private AudioSetting recordAS = null; //录音设置实例
-    private AudioSetting playAS = null;   //播放设置实例
+    private AudioSetting recordAS;        //录音设置实例
+    private AudioSetting playAS;          //播放设置实例
     private Button recordButton;          // 开始、停止录制按钮
     private Button playButton;            // 开始、停止播放按钮
     protected static boolean isRecording = false;
     protected static boolean isPlaying = false;
-    private TextView statusString;        // 滚动日志信息文本框
+    private TextView appLogTextView;      // logcat输出TextView，滚动日志信息文本框
     private EditText mqttAddrEditText;    // MQTT地址文本
     private EditText mqttPortEditText;    // MQTT端口文本
 
-    private RecordAudio recordTask = null; // 录制音频的实例
-    private PlayAudio playTask = null;     // 播放音频的实例
+    private RecordAudio recordTask;       // 录制音频的实例
+    private PlayAudio playTask;           // 播放音频的实例
     private File path;
-    protected static File recordingFile;   // 保存音频文件，路径为/storage/sdcard/DTClient/
+    protected static File recordingFile;  // 保存音频文件，路径为/storage/sdcard/DTClient/
 
     protected static ImageView imageViewPCM;
     protected static Bitmap bitmapPCM;
     protected static Canvas canvasPCM;
     protected static Paint paintPCM;
 
-    private Long startTimeStamp=null;
-    private Long stopTimeStamp=null;
+    private Long startTimeStamp;          // 开始录制的时间
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        // 隐藏标题栏
-        //requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.activity_main);
 
         recordButton = (Button) findViewById(R.id.record_button);
@@ -90,14 +94,14 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         playButton.setOnClickListener(this);
         playButton.setEnabled(false); //初始情况下播放按钮不可用
 
-        statusString = (TextView) findViewById(R.id.status);
-        statusString.setMovementMethod(new ScrollingMovementMethod()); //可滚动更新的文本
+        appLogTextView = (TextView) findViewById(R.id.appLog);
+        appLogTextView.setMovementMethod(new ScrollingMovementMethod()); //可滚动更新的文本
 
         mqttAddrEditText = (EditText) findViewById(R.id.mqtt_addr);
         mqttPortEditText = (EditText) findViewById(R.id.mqtt_port);
 
-        Spinner sp;
-        sp = (Spinner) findViewById(R.id.spinnerSampleRate); // 设置Spinner用于选择采样频率
+        Spinner sp;  // 设置Spinner用于选择采样频率
+        sp = (Spinner) findViewById(R.id.spinnerSampleRate);
         sp.setOnItemSelectedListener(this);
         List<Integer> spinnerList = new ArrayList<>();
         // 44100Hz is currently the only rate that is guaranteed to work on all devices, but other
@@ -111,6 +115,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         sp.setAdapter(dataAdapter);
         frequency = (int) sp.getSelectedItem();
+        Log.i(LOG_TAG, "采样频率初始化为：" + frequency + "Hz");
 
         //初始化PCM图形
         int imageWidth = 512;
@@ -120,6 +125,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         paintPCM = new Paint();
         paintPCM.setColor(Color.GREEN);
         imageViewPCM.setImageBitmap(bitmapPCM);
+        Log.i(LOG_TAG, "初始化ImageView成功");
 
         path = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/DTClient/");
         boolean isDirCreated = path.mkdirs();
@@ -128,9 +134,10 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         } else if (path.isDirectory()){
             Log.i(LOG_TAG, path + "文件夹已存在");
         } else {
-            Log.i(LOG_TAG, "创建DTClient文件夹失败");
+            Log.w(LOG_TAG, "创建DTClient文件夹失败");
         }
-
+        int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+        // TODO 8bit会显著地提高性能吗？如果不能，不用改
         // 注意CHANNEL_IN_MONO和CHANNEL_OUT_MONO有区别，只能分开设置
         recordAS = new AudioSetting(frequency, AudioFormat.CHANNEL_IN_MONO, audioEncoding);
         playAS = new AudioSetting(frequency, AudioFormat.CHANNEL_OUT_MONO, audioEncoding);
@@ -150,24 +157,26 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     if (saveDataToFile) {
                         playButton.setEnabled(true); // 如果保存了文件则播放录音按钮激活
                     }
-                    statusString.append("停止录制\n");
+                    Log.i(LOG_TAG, "停止录制");
                     recordButton.setText(R.string.start_recording);
                     recordTask.cancel(true); //手动停止，对应onCancelled方法
                     recordTask = null;
-                    stopTimeStamp = System.currentTimeMillis(); //获取采样停止时刻的时间戳
+                    long stopTimeStamp = System.currentTimeMillis(); //获取采样停止时刻的时间戳
                     double timeElapsed = (stopTimeStamp - startTimeStamp) / 1000.0;
-                    statusString.append("共采样" + totalDataSize + "点，大约耗时" +
-                            timeElapsed + "秒，平均采样率为" + ( totalDataSize/timeElapsed) + "Hz\n");
+                    Log.i(LOG_TAG, "共采样" + totalDataSize + "点，大约耗时" +
+                            timeElapsed + "秒，平均采样率为" + (totalDataSize / timeElapsed) + "Hz");
                     if (saveDataToFile) {
-                        statusString.append("数据已存储到" + recordingFile);
+                        Log.i(LOG_TAG, "数据已存储到" + recordingFile);
                     }
+                    Log.d(LOG_TAG, "这里是录制按钮按下Stop的代码块");
+                    printAppLog(); // 打印当前过滤日志到appLogTextView
                 } else {
                     // 非录制状态按“Start”按钮开始录制并改recordButton按钮文字为“Stop Recording”
                     isRecording = true;
                     recordButton.setText(R.string.stop_recording);
                     playButton.setEnabled(false); //录制状态下播放按钮不可用
                     totalDataSize = 0L; //计数归零
-                    statusString.append("开始录制\n");
+                    Log.i(LOG_TAG, "开始录制");
                     if (saveDataToFile) {
                         try {
                             String timeStr = (new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US)).format(new Date());
@@ -178,7 +187,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                             if (isFileCreated) {
                                 Log.i(LOG_TAG, "成功创建文件" + recordingFile + "\n");
                             } else {
-                                Log.i(LOG_TAG, "文件创建失败，请检查原因\n");
+                                Log.e(LOG_TAG, "文件创建失败，请检查原因\n");
                             }
                             DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(recordingFile)));
                             recordAS.setDos(dos); // 设置录制输出文件流
@@ -197,10 +206,12 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                         // 启动数据发布子线程
                         pubThread = new MQTTPubAudio();
                         pubThread.start();
+                        Log.i(LOG_TAG, "数据发布进程启动...");
                     }
-                    recordTask = new RecordAudio(recordAS); // 传入录制参数并创建录制子线程
+                    recordTask = new RecordAudio(MainActivity.this, recordAS); // 传入录制参数并创建录制子线程
                     startTimeStamp = System.currentTimeMillis(); // 获取采样开始时刻的时间戳
                     recordTask.execute(); // 开始调用后台进程
+                    Log.i(LOG_TAG, "采集进程开始运行...");
                 }
                 break;
             case R.id.play_button: // 播放按钮
@@ -208,15 +219,16 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     // 播放状态下按“Stop Playing”按钮则停止播放并改按钮文字为"Start Playing"
                     isPlaying = false;
                     recordButton.setEnabled(true);
-                    statusString.append("停止播放\n");
+                    Log.i(LOG_TAG, "停止播放");
                     playButton.setText(R.string.start_playing);
                     playTask.cancel(true);
                     playTask=null;
-
+                    Log.d(LOG_TAG, "这里是播放按钮按下Stop的代码块");
+                    printAppLog();
                 } else {
                     // 非播放状态下按"Start Playing"按钮则开始播放并改按钮文字为"Stop Playing"
                     recordButton.setEnabled(false); // 播放状态下录制按钮不可用
-                    statusString.append("开始播放文件" + recordingFile + "\n");
+                    Log.i(LOG_TAG, "开始播放文件" + recordingFile);
                     playButton.setText(R.string.stop_playing);
                     try {
                         DataInputStream dis = new DataInputStream(new BufferedInputStream(new FileInputStream(recordingFile)));
@@ -226,7 +238,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     }
                     playTask = new PlayAudio(playAS); // 传入播放参数并创建播放子线程
                     playTask.execute();
-
+                    Log.i(LOG_TAG, "播放进程开始运行...");
                 }
                 break;
             default:
@@ -252,12 +264,12 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
             case R.id.checkbox_sendmqtt:
                 if (checked) {
                     MainActivity.sendDataWithMQTT = true;
-                    Toast.makeText(this, "通过MQTT发送数据", Toast.LENGTH_SHORT).show();
-                    Log.i(LOG_TAG, "通过MQTT发送数据");
+                    Toast.makeText(this, "设置通过MQTT发送数据", Toast.LENGTH_SHORT).show();
+                    Log.i(LOG_TAG, "设置通过MQTT发送数据");
                 } else {
                     MainActivity.sendDataWithMQTT = false;
-                    Toast.makeText(this, "不通过MQTT发送数据", Toast.LENGTH_SHORT).show();
-                    Log.i(LOG_TAG, "不通过MQTT发送数据");
+                    Toast.makeText(this, "设置不通过MQTT发送数据", Toast.LENGTH_SHORT).show();
+                    Log.i(LOG_TAG, "设置不通过MQTT发送数据");
                 }
                 break;
             default:
@@ -266,6 +278,45 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
 
     }
 
+    public int printAppLog() {
+        // 在应用内调用`logcat`打印过滤的日志到TextView
+        // 临时启动logcat进程，记录当前App的日志并输出到appLogTextView
+        // 注意这相当于运行一次logcat进程并取得过滤的日志再在appLogTextView里打印出来
+        // 因为是一次性而非常驻进程，所以必须放到所有日志都产生之后的地方，否则后面的日志只能等下次输出
+        String separator = System.getProperty("line.separator");
+        try {
+            // logcat -d OptionMenu:D *:S
+            // Output only logs of TAG OptionMenu above Debug
+            Process mProcess = Runtime.getRuntime().exec(logcatProc);
+            // 将logcat进程的输出连接到BufferedReader上
+            BufferedReader reader =  new BufferedReader(new InputStreamReader(mProcess.getInputStream()));
+            StringBuilder builder = new StringBuilder(); // 临时存储日志
+            //logBuilder.append(separator);
+            String line;
+
+            while ((line = reader.readLine())!= null) {
+                // 此循环结束后出现的日志都不会在appLogTextView里打印出来
+                // 当然仍然可以使用远程adb logcat看到
+                builder.append(line);
+                builder.append(separator);
+            }
+            Log.i(LOG_TAG, "调用logcat输出日志完成"); //这条日志就不会在App里被打印出来
+            appLogTextView.setText(builder.toString());
+        } catch (IOException e) {
+            Log.e(LOG_TAG, "启动logcat失败，IO异常");
+            e.printStackTrace();
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            Log.e(LOG_TAG, "启动logcat失败，其它异常");
+            Log.e(LOG_TAG, "原因：" + e.getCause());
+            Log.e(LOG_TAG, "说明：" + e.getLocalizedMessage());
+            Log.e(LOG_TAG, "详细说明：" + e.getMessage());
+            return 2;
+        }
+        return 0;
+
+    }
     @Override
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
         frequency = (int) parent.getSelectedItem();
@@ -311,6 +362,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
      * 2、菜单里，用于调试退出
      */
     public static void forceExitApp() {
+        Log.e(LOG_TAG, "强制退出App");
         android.os.Process.killProcess(android.os.Process.myPid());
         System.exit(1);
         // 使用System.exit()退出App是由争议的，这里不理会

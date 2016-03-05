@@ -1,5 +1,6 @@
 package net.joshuazhang.dtclient;
 
+import android.content.Context;
 import android.graphics.Color;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
@@ -19,16 +20,19 @@ import java.util.Arrays;
 public class RecordAudio extends AsyncTask<Void, short[], Void> {
 
     private static final String LOG_TAG = MainActivity.LOG_TAG;
-    private AudioSetting mRecordAS;
-    private DataOutputStream dos;
-    private AudioRecord audioRecord;
+    private AudioSetting mRecordAS = null;
+    private DataOutputStream dos = null;
+    private AudioRecord audioRecord = null;
+    private MainActivity activity = null;
 
     /**
      * 使用构造器传递录制参数
+     * @param context TODO 为了引用MainActivity的实例？
      * @param as 音频采样参数设置对象
      */
-    public RecordAudio(AudioSetting as) {
+    public RecordAudio(Context context, AudioSetting as) {
         mRecordAS = as;
+        activity = (MainActivity) context;
         // 创建文件以保存音频数据
         if (MainActivity.saveDataToFile) {
             this.dos = mRecordAS.getDos();
@@ -76,7 +80,7 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
 
             // 开始录制音频
             audioRecord.startRecording();
-            Log.i(LOG_TAG, "开始采集音频数据");
+            Log.i(LOG_TAG, "开始采集音频数据...");
 
             while (MainActivity.isRecording) { // isRecording控制录制状态
                 //读取blockSize长度的数据
@@ -118,6 +122,8 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
                     }
                 }
             }
+            Log.d(LOG_TAG, "RecordAudio->doInBackground()->finally");
+            activity.printAppLog();
         }
         return null;
     }
@@ -161,5 +167,11 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
             Log.v(LOG_TAG, "第" + MainActivity.pubThread.msgUpdateCNT + "段新数据更新完成");
             //MainActivity.pubThread.start();
         }
+    }
+
+    @Override
+    protected void onPostExecute (Void result) {
+        Log.d(LOG_TAG, "RecordAudio->onPostExecute()");
+        activity.printAppLog();
     }
 }

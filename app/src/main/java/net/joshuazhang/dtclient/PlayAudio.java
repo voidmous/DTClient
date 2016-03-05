@@ -74,7 +74,7 @@ public class PlayAudio extends AsyncTask<Void, Void, Void> {
                     Log.i(LOG_TAG, "关闭播放流");
                 } catch (IOException ioe) {
                     ioe.printStackTrace();
-                    Log.i(LOG_TAG, "关闭播放流失败");
+                    Log.e(LOG_TAG, "关闭播放流失败");
                 }
             }
             audioTrack.release();
