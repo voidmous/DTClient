@@ -22,8 +22,17 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
     private static final String LOG_TAG = MainActivity.LOG_TAG;
     private AudioSetting mRecordAS = null;
     private DataOutputStream dos = null;
+
     private AudioRecord audioRecord = null;
     private MainActivity activity = null;
+
+    public AudioRecord getAudioRecord() {
+        return audioRecord;
+    }
+
+    public void setAudioRecord(AudioRecord audioRecord) {
+        this.audioRecord = audioRecord;
+    }
 
     /**
      * 使用构造器传递录制参数
@@ -118,12 +127,13 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
                         Log.i(LOG_TAG, "关闭录制流成功");
                     } catch (IOException ioe) {
                         ioe.printStackTrace();
-                        Log.e(MainActivity.LOG_TAG, "关闭文件流错误");
+                        Log.e(LOG_TAG, "关闭文件流错误");
                     }
                 }
             }
-            Log.d(LOG_TAG, "RecordAudio->doInBackground()->finally");
-            activity.printAppLog();
+            //Log.d(LOG_TAG, "RecordAudio->doInBackground()->finally");
+            // TODO 在这个类中调用printAppLog时还是会产生异常
+            //activity.printAppLog();
         }
         return null;
     }
@@ -172,6 +182,6 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
     @Override
     protected void onPostExecute (Void result) {
         Log.d(LOG_TAG, "RecordAudio->onPostExecute()");
-        activity.printAppLog();
+        //activity.printAppLog();
     }
 }

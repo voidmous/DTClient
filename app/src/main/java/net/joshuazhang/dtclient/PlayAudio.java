@@ -15,8 +15,17 @@ public class PlayAudio extends AsyncTask<Void, Void, Void> {
 
     private static final String LOG_TAG = MainActivity.LOG_TAG;
     private AudioSetting mPlayAS;
+
     private AudioTrack audioTrack;
     private DataInputStream dis;
+
+    public AudioTrack getAudioTrack() {
+        return audioTrack;
+    }
+
+    public void setAudioTrack(AudioTrack audioTrack) {
+        this.audioTrack = audioTrack;
+    }
 
     public PlayAudio(AudioSetting as) {
         mPlayAS = as;

@@ -1,5 +1,6 @@
 package net.joshuazhang.dtclient;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -7,6 +8,7 @@ import android.graphics.Paint;
 import android.media.AudioFormat;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.PowerManager;
 import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
@@ -80,6 +82,8 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     protected static Canvas canvasPCM;
     protected static Paint paintPCM;
 
+    private static PowerManager.WakeLock wl;     // 不关闭CPU、允许关闭屏幕和键盘灯
+
     private Long startTimeStamp;          // 开始录制的时间
 
     @Override
@@ -142,6 +146,36 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         recordAS = new AudioSetting(frequency, AudioFormat.CHANNEL_IN_MONO, audioEncoding);
         playAS = new AudioSetting(frequency, AudioFormat.CHANNEL_OUT_MONO, audioEncoding);
 
+        // 为了实验时不会因为手机锁屏关闭程序，需要控制电源参数
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wl = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "不关闭CPU，可以关闭屏幕和键盘灯");
+        // 查看是否已经开启了权限
+        if (wl.isHeld()) {
+            Log.w(LOG_TAG, "WakeLock已经开启，请检查是否上次获取未被释放");
+        } else {
+            wl.acquire();
+            Log.i(LOG_TAG, "获取了WakeLock，CPU不会被关闭，屏幕和键盘灯可以关闭");
+        }
+
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy(); // TODO 父类方法应该放前面还是后面？
+        // 释放各类占用的系统资源
+        if (recordTask != null && recordTask.getAudioRecord() != null) {
+            recordTask.getAudioRecord().release();
+            Log.i(LOG_TAG, "AudioRecord实例已释放资源");
+        }
+        if (playTask != null && playTask.getAudioTrack() != null) {
+            playTask.getAudioTrack().release();
+            Log.i(LOG_TAG, "AudioTrack实例已释放资源");
+        }
+        Log.i(LOG_TAG, "释放WakeLock");
+        if (wl != null) {
+            wl.release();
+            Log.i(LOG_TAG, "onDestry释放WakeLock");
+        }
     }
 
     @Override
@@ -279,6 +313,7 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
     }
 
     public int printAppLog() {
+        // TODO 还是不能在RecordAudio或者PlayAudio类中调用，会产生异常
         // 在应用内调用`logcat`打印过滤的日志到TextView
         // 临时启动logcat进程，记录当前App的日志并输出到appLogTextView
         // 注意这相当于运行一次logcat进程并取得过滤的日志再在appLogTextView里打印出来
@@ -303,12 +338,12 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
             Log.i(LOG_TAG, "调用logcat输出日志完成"); //这条日志就不会在App里被打印出来
             appLogTextView.setText(builder.toString());
         } catch (IOException e) {
-            Log.e(LOG_TAG, "启动logcat失败，IO异常");
+            Log.e(LOG_TAG, "调用logcat产生了IO异常");
             e.printStackTrace();
             return 1;
         } catch (Exception e) {
             e.printStackTrace();
-            Log.e(LOG_TAG, "启动logcat失败，其它异常");
+            Log.e(LOG_TAG, "调用logcat产生了其它异常");
             Log.e(LOG_TAG, "原因：" + e.getCause());
             Log.e(LOG_TAG, "说明：" + e.getLocalizedMessage());
             Log.e(LOG_TAG, "详细说明：" + e.getMessage());
@@ -363,6 +398,10 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
      */
     public static void forceExitApp() {
         Log.e(LOG_TAG, "强制退出App");
+        Log.e(LOG_TAG, "释放WakeLock");
+        if (wl!=null && wl.isHeld()) {
+            wl.release();
+        }
         android.os.Process.killProcess(android.os.Process.myPid());
         System.exit(1);
         // 使用System.exit()退出App是由争议的，这里不理会
