@@ -5,13 +5,16 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.media.AudioFormat;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.PowerManager;
 import android.support.v7.app.AppCompatActivity;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
+import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -104,6 +107,13 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         mqttAddrEditText = (EditText) findViewById(R.id.mqtt_addr);
         mqttPortEditText = (EditText) findViewById(R.id.mqtt_port);
 
+        // 查看支持的音频录制参数
+        //AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        //String sampleRateAvailable =
+        //        audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE);
+        //String sampleBufferSizeAvailable =
+        //        audioManager.getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER);
+
         Spinner sp;  // 设置Spinner用于选择采样频率
         sp = (Spinner) findViewById(R.id.spinnerSampleRate);
         sp.setOnItemSelectedListener(this);
@@ -121,10 +131,26 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
         frequency = (int) sp.getSelectedItem();
         Log.i(LOG_TAG, "采样频率初始化为：" + frequency + "Hz");
 
-        //初始化PCM图形
-        int imageWidth = 512;
+        // 初始化PCM图形
+        // 获得窗口尺寸信息
+        int imageWidth;
+        int imageHeight;
+        Display display = getWindowManager().getDefaultDisplay();
+        if (Build.VERSION.SDK_INT >= 13) {
+            // getSize() must be above API 13
+            Point size = new Point();
+            display.getSize(size);
+            //int imageWidth = 512;
+            imageWidth = size.x;
+            imageHeight = (int) Math.floor(0.2*size.y);
+        } else {
+            // deprecated after API 13
+            imageWidth = display.getWidth();
+            imageHeight = (int) Math.floor(0.2*display.getHeight());
+        }
+
         imageViewPCM = (ImageView) findViewById(R.id.ImageViewPCM);
-        bitmapPCM = Bitmap.createBitmap(imageWidth, 200, Bitmap.Config.ARGB_8888);
+        bitmapPCM = Bitmap.createBitmap(imageWidth, imageHeight, Bitmap.Config.ARGB_8888);
         canvasPCM = new Canvas(bitmapPCM);
         paintPCM = new Paint();
         paintPCM.setColor(Color.GREEN);
@@ -194,8 +220,8 @@ public class MainActivity extends AppCompatActivity implements OnClickListener, 
                     Log.i(LOG_TAG, "停止录制");
                     recordButton.setText(R.string.start_recording);
                     recordTask.cancel(true); //手动停止，对应onCancelled方法
-                    recordTask = null;
                     long stopTimeStamp = System.currentTimeMillis(); //获取采样停止时刻的时间戳
+                    recordTask = null;
                     double timeElapsed = (stopTimeStamp - startTimeStamp) / 1000.0;
                     Log.i(LOG_TAG, "共采样" + totalDataSize + "点，大约耗时" +
                             timeElapsed + "秒，平均采样率为" + (totalDataSize / timeElapsed) + "Hz");

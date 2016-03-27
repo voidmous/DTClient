@@ -4,7 +4,9 @@ import android.content.Context;
 import android.graphics.Color;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.media.audiofx.AutomaticGainControl;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.util.Log;
 
 import org.eclipse.paho.client.mqttv3.MqttMessage;
@@ -65,7 +67,9 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
 
             //创建AudioRecord实例
             audioRecord = new AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
+                    // 选择哪个源更适合此任务？
+                    // VOICE_CALL是上下行的语音通信信号，可能被视为非法
+                    MediaRecorder.AudioSource.VOICE_RECOGNITION,
                     mRecordAS.frequency,
                     mRecordAS.channelConfiguration,
                     mRecordAS.audioEncoding,
@@ -76,7 +80,13 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
             Log.i(LOG_TAG, "声道设置为：" + audioRecord.getChannelCount() + "个声道");
             Log.i(LOG_TAG, "音频编码格式为：" + audioRecord.getAudioFormat() + "个字节");
             Log.i(LOG_TAG, "缓冲区大小为："+ bufferSize + "个字节");
-            Log.i(LOG_TAG, "AudioRecord实例状态为：" + audioRecord.getState() + "，1为正常");
+            Log.i(LOG_TAG, "AudioRecord实例状态为（1为正常）：" + audioRecord.getState());
+            if (Build.VERSION.SDK_INT >= 16) {
+                Log.i(LOG_TAG, "此机型是否支持AGC： " + String.valueOf(AutomaticGainControl.isAvailable()));
+            } else {
+                Log.i(LOG_TAG, "API小于16，无法确认是否支持AGC");
+            }
+
             Log.i(LOG_TAG, "========采样设置参数========");
 
             // TODO buffersize 和 blockSize需要满足什么大小关系吗？
@@ -133,6 +143,8 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
             }
             //Log.d(LOG_TAG, "RecordAudio->doInBackground()->finally");
             // TODO 在这个类中调用printAppLog时还是会产生异常
+            // Exception Info:
+            // “Only the original thread that created a view hierarchy can touch its views.”
             //activity.printAppLog();
         }
         return null;
@@ -159,14 +171,17 @@ public class RecordAudio extends AsyncTask<Void, short[], Void> {
         byte[] data = new byte[progress[0].length * 2];
 
         //绘制PCM波形和分贝图形
-        for (int i = 0; i < progress[0].length; i++) {
+        int dataLen = progress[0].length;
+        int width = MainActivity.bitmapPCM.getWidth();
+        int height = MainActivity.bitmapPCM.getHeight();
+        for (int i = 0; i < dataLen; i++) {
             audioData[i]=(double) progress[0][i] / 32768.0;
             // 将一个short转为网络传输的两个byte，big-endian编码
             data[i*2]=(byte)(progress[0][i]>>8);
             data[i*2+1]=(byte) (progress[0][i]&0xFF);
-            int downy = (int) (100 - (audioData[i] * 100));
-            int upy = 100;
-            MainActivity.canvasPCM.drawLine(i, downy, i, upy, MainActivity.paintPCM);
+            int downy = (int) (height/2 - (audioData[i] * height/2));
+            int upy = height/2;
+            MainActivity.canvasPCM.drawLine(i*width/dataLen, downy, i*width/dataLen, upy, MainActivity.paintPCM);
         }
         MainActivity.imageViewPCM.invalidate(); //更新PCM波形图
 

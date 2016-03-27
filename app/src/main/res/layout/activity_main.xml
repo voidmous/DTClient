@@ -146,7 +146,7 @@
         android:id="@+id/appLog"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxLines="10"
+        android:maxLines="6"
         android:scrollbars="vertical"
         android:gravity="bottom"/>
 
